@@ -178,9 +178,9 @@ def processImage():
             blankImage, label, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 0), 3
         )
 
-    cv2.imshow("", blankImage)
-    cv2.imwrite("blankImage.jpg", blankImage)
-    cv2.waitKey(0)
+    # cv2.imshow("", blankImage)
+    # cv2.imwrite("blankImage.jpg", blankImage)
+    # cv2.waitKey(0)
 
     img_object = Image.open(r"blankImage.jpg")
     img_text = pt.image_to_string(img_object, lang="eng")
