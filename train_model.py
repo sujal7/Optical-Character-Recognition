@@ -13,15 +13,12 @@ def load_az_dataset(datasetPath):
         label = int(row[0])
         image = np.array([int(x) for x in row[1:]], dtype="uint8")
         image = image.reshape((28, 28))
-
         # update the list of data and labels
         data.append(image)
         labels.append(label)
-
     # convert the data and labels to NumPy arrays
     data = np.array(data, dtype="float32")
     labels = np.array(labels, dtype="int")
-
     # return a 2-tuple of the A-Z data and labels
     return (data, labels)
 
@@ -37,14 +34,10 @@ def load_mnist_dataset():
     return (data, labels)
 
 
-# set the matplotlib backend so figures can be saved in the background
 import matplotlib
 
 matplotlib.use("Agg")
 
-# import the necessary packages
-# from datasets.load_dataset import load_mnist_dataset
-# from datasets.load_dataset import load_az_dataset
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.optimizers import SGD
 from sklearn.preprocessing import LabelBinarizer
@@ -63,51 +56,43 @@ BS = 128
 
 # load the A-Z and MNIST datasets, respectively
 print("[INFO] loading datasets...")
-(azData, azLabels) = load_az_dataset(
-    "a_z_handwritten_data.csv"
-)  # upload csv file in your drive and give path here
+(azData, azLabels) = load_az_dataset("a_z_handwritten_data.csv")
 (digitsData, digitsLabels) = load_mnist_dataset()
 
-# the MNIST dataset occupies the labels 0-9, so let's add 10 to every
-# A-Z label to ensure the A-Z characters are not incorrectly labeled
-# as digits
+# the MNIST dataset occupies the labels 0-9, so we add 10 to every A-Z label
 azLabels += 10
 
 # stack the A-Z data and labels with the MNIST digits data and labels
 data = np.vstack([azData, digitsData])
 labels = np.hstack([azLabels, digitsLabels])
 
-# each image in the A-Z and MNIST digts datasets are 28x28 pixels;
-# however, the architecture we're using is designed for 32x32 images,
-# so we need to resize them to 32x32
 data = [cv2.resize(image, (32, 32)) for image in data]
 data = np.array(data, dtype="float32")
 
-# add a channel dimension to every image in the dataset and scale the
+# adding a channel dimension to every image in the dataset and scaling the
 # pixel intensities of the images from [0, 255] down to [0, 1]
 data = np.expand_dims(data, axis=-1)
 data /= 255.0
 
-# convert the labels from integers to vectors
+# converts the labels from integers to vectors
 le = LabelBinarizer()
 labels = le.fit_transform(labels)
 counts = labels.sum(axis=0)
 
-# account for skew in the labeled data
+# accounts for skew in the labeled data
 classTotals = labels.sum(axis=0)
 classWeight = {}
 
-# loop over all classes and calculate the class weight
+# looping over all classes and calculating the class weight
 for i in range(0, len(classTotals)):
     classWeight[i] = classTotals.max() / classTotals[i]
 
-# partition the data into training and testing splits using 80% of
-# the data for training and the remaining 20% for testing
+# partitioning the data into 80% training and 20% testing set
 (trainX, testX, trainY, testY) = train_test_split(
     data, labels, test_size=0.20, stratify=labels, random_state=42
 )
 
-# construct the image generator for data augmentation
+# constructing the image generator for data augmentation
 aug = ImageDataGenerator(
     rotation_range=10,
     zoom_range=0.05,
@@ -118,7 +103,6 @@ aug = ImageDataGenerator(
     fill_mode="nearest",
 )
 
-# import the necessary packages
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.layers import Conv2D
 from tensorflow.keras.layers import AveragePooling2D
@@ -138,8 +122,7 @@ class CNN:
     def residual_module(
         data, K, stride, chanDim, red=False, reg=0.0001, bnEps=2e-5, bnMom=0.9
     ):
-        # the shortcut branch of the CNN module should be
-        # initialize as the input (identity) data
+
         shortcut = data
 
         # the first block of the CNN module are the 1x1 CONVs
@@ -161,14 +144,12 @@ class CNN:
             kernel_regularizer=l2(reg),
         )(act2)
 
-        # the third block of the CNN module is another set of 1x1
-        # CONVs
+        # the third block of the CNN module is another set of 1x1 CONVs
         bn3 = BatchNormalization(axis=chanDim, epsilon=bnEps, momentum=bnMom)(conv2)
         act3 = Activation("relu")(bn3)
         conv3 = Conv2D(K, (1, 1), use_bias=False, kernel_regularizer=l2(reg))(act3)
 
-        # if we are to reduce the spatial size, apply a CONV layer to
-        # the shortcut
+        # if we are to reduce the spatial size, applying a CONV layer to the shortcut
         if red:
             shortcut = Conv2D(
                 K, (1, 1), strides=stride, use_bias=False, kernel_regularizer=l2(reg)
@@ -230,7 +211,7 @@ class CNN:
                     x, filters[i + 1], (1, 1), chanDim, bnEps=bnEps, bnMom=bnMom
                 )
 
-        # apply BN => ACT => POOL
+        # apply BN, ACT & POOL
         x = BatchNormalization(axis=chanDim, epsilon=bnEps, momentum=bnMom)(x)
         x = Activation("relu")(x)
         x = AveragePooling2D((8, 8))(x)
@@ -246,7 +227,7 @@ class CNN:
         return model
 
 
-# initialize and compile our deep neural network
+# initialize and compile our convolutional neural network
 print("[INFO] compiling model...")
 opt = SGD(learning_rate=INIT_LR, decay=INIT_LR / EPOCHS)
 model = CNN.build(
@@ -254,7 +235,7 @@ model = CNN.build(
 )
 model.compile(loss="categorical_crossentropy", optimizer=opt, metrics=["accuracy"])
 
-# train the network
+# training the network
 print("[INFO] training network...")
 H = model.fit(
     aug.flow(trainX, trainY, batch_size=BS),
@@ -278,7 +259,8 @@ print(
         testY.argmax(axis=1), predictions.argmax(axis=1), target_names=labelNames
     )
 )
-# save the model to disk
+
+# save the model to project folder
 print("[INFO] serializing network...")
 model.save(["model"], save_format="h5")
 
@@ -299,7 +281,7 @@ images = []
 
 # randomly select a few testing characters
 for i in np.random.choice(np.arange(0, len(testY)), size=(49,)):
-    # classify the character
+    # predicting the character
     probs = model.predict(testX[np.newaxis, i])
     prediction = probs.argmax(axis=1)
     label = labelNames[prediction[0]]
@@ -313,16 +295,15 @@ for i in np.random.choice(np.arange(0, len(testY)), size=(49,)):
     if prediction[0] != np.argmax(testY[i]):
         color = (0, 0, 255)
 
-    # merge the channels into one image, resize the image from 32x32
-    # to 96x96 so we can better see it and then draw the predicted
-    # label on the image	image = cv2.merge([image] * 3)
+    # merge the channels into one image, resize the image from 32x32 to 96x96
+    # then draw the predicted label on the image
     image = cv2.resize(image, (96, 96), interpolation=cv2.INTER_LINEAR)
     cv2.putText(image, label, (5, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.75, color, 2)
 
     # add the image to our list of output images
     images.append(image)
 
-# construct the montage for the images
+# construct the montage for the test images
 montage = build_montages(images, (96, 96), (7, 7))[0]
 
 # show the output montage
