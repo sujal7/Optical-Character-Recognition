@@ -108,6 +108,9 @@ def processImage(input_image):
         cv2.putText(
             blank_image, label, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 0), 3
         )
+    
+    
+    cv2.imwrite("blankImage.jpg", blank_image)
 
     pt.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
     img_object = Image.open(r"blankImage.jpg")
